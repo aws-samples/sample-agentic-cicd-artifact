@@ -1,0 +1,15 @@
+# Trust boundaries this threat model MUST cover (validate.py coverage check).
+# Declaring a boundary with no referencing threat fails the gate.
+boundaries:
+  - id: TB-DATA
+    name: Function to datastore
+    description: Service queries against the user datastore
+  - id: TB-EDGE
+    name: Viewer to edge
+    description: Anonymous internet viewers crossing CloudFront/API Gateway into the service
+  - id: TB-INGRESS
+    name: Caller to function
+    description: Untrusted invocation input crossing into the service
+  - id: TB-PIPELINE
+    name: Change author to production
+    description: Code/infra changes flowing through the delivery pipeline
