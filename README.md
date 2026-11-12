@@ -269,3 +269,5 @@ before the application serves real traffic.
 ## License
 
 MIT-0.
+
+<!-- PR agent wiring check; this pull request is closed without merging. -->
