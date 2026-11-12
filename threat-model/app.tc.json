@@ -1,0 +1,149 @@
+{
+  "schema": 1,
+  "applicationInfo": {
+    "name": "THE FALL OF TROY (artifact)",
+    "description": "The application shipped through the agentic paved road: a Lambda behind CloudFront that serves the illustrated edition of the scene, its page at '/' and its static files (src/site/) from an allowlist built at start-up, gated by the road's four-agent review panel and its deterministic lanes.",
+    "lastReviewed": "2026-10-06 \u2014 illustrated edition, release B: '/' and '/index.html' render the illustrated page with the release marker and the escaped dedication, under a Content-Security-Policy limited to same-origin script, style, fonts, media and fetch, data: images and blob: workers, plus nosniff and a referrer policy. The files it loads shipped one release earlier (T-008 to T-011); the 16-bit scene stays packaged as the rollback source. No template, IAM or boundary change. Evidence and review findings do not imply complete defect detection."
+  },
+  "threats": [
+    {
+      "id": "T-001",
+      "statement": "An external actor supplying a crafted username [TB-INGRESS] can inject SQL through string-built queries, which leads to disclosure of all user rows [TB-DATA]",
+      "stride": [
+        "T",
+        "I"
+      ],
+      "mitigations": [
+        "Parameterized queries (SEC-001 review rule)",
+        "Layered model review, automated checks, and independent deployment controls; model findings remain probabilistic"
+      ]
+    },
+    {
+      "id": "T-003",
+      "statement": "An over-permissive IAM statement introduced in template.yaml [TB-PIPELINE] can grant the service wildcard access, which leads to privilege escalation beyond the data boundary [TB-DATA]",
+      "stride": [
+        "E"
+      ],
+      "mitigations": [
+        "cfn-guard + Access Analyzer in the deterministic lane",
+        "IAM-002 blocking rule"
+      ]
+    },
+    {
+      "id": "T-004",
+      "statement": "A defective new version [TB-PIPELINE] can start erroring under real traffic, which leads to denial of service for callers [TB-INGRESS]",
+      "stride": [
+        "D"
+      ],
+      "mitigations": [
+        "PreTraffic smoke hook",
+        "Canary shifting with CloudWatch alarm gate and automatic rollback"
+      ]
+    },
+    {
+      "id": "T-005",
+      "statement": "An anonymous viewer flooding the public site [TB-EDGE] can exhaust Lambda concurrency, which leads to denial of service for legitimate viewers [TB-INGRESS]",
+      "stride": [
+        "D"
+      ],
+      "mitigations": [
+        "Short query-aware CloudFront caching for this low-traffic demo; monitor unexpected request/cost growth",
+        "API Gateway throttling and live-alias error alarm; not a complete denial-of-service control",
+        "Edge caching bounds only what CloudFront can answer from its cache: each new query string is a new cache key, and the public execute-api URL bypasses CloudFront. Since the function also serves files of up to about 2 MB (the score as base64), a file URL with a query string gets a cheap 404 (T-011). Direct execute-api traffic is an accepted residual risk, bounded only by the account-level API Gateway throttle and Lambda concurrency limit, because HelloFn has no reserved concurrency"
+      ]
+    },
+    {
+      "id": "T-006",
+      "statement": "An operator introduces a controlled faulty revision [TB-PIPELINE]; a directly invoked probe can raise a Lambda error [TB-INGRESS], which must trigger the canary error alarm without affecting ordinary HTTP visitors [TB-EDGE].",
+      "stride": [
+        "D"
+      ],
+      "mitigations": [
+        "Fault flag defaults false; only an authenticated direct Lambda invocation with demo_fault_probe and without requestContext reaches the drill",
+        "PreTraffic smoke invocation remains healthy so the demonstration exercises CloudWatch alarm rollback during traffic shifting",
+        "Restore the healthy source revision after the drill; record deployment IDs, alarm transitions and alias versions"
+      ]
+    },
+    {
+      "id": "T-007",
+      "statement": "Visitor-provided dedication text crosses the public input boundary [TB-EDGE] and reaches an HTML response [TB-INGRESS]; interpreting that input as markup could cause unintended script execution in a visitor browser.",
+      "stride": [
+        "T"
+      ],
+      "mitigations": [
+        "html.escape at the HTML output boundary for this text-only feature, with a120-character limit",
+        "A second layer if encoding ever failed: the page's Content-Security-Policy runs script only from the site's own files (script-src 'self', so no inline script or eval)",
+        "Regression tests require markup-like input to remain encoded text and enforce the length limit",
+        "SEC-003 model-assisted review supplies additional findings; it does not prove complete detection"
+      ]
+    },
+    {
+      "id": "T-008",
+      "statement": "An anonymous viewer requesting a crafted path [TB-EDGE] (dot segments, percent-encoding, doubled or back slashes, absolute paths, null bytes) could make the function read a file outside the published site [TB-INGRESS], which leads to disclosure of its source or configuration.",
+      "stride": [
+        "I"
+      ],
+      "mitigations": [
+        "The edition's files are read once at start-up into an allowlist of regular files under src/site/ with a known type; dot-files, symlinks and index.html are excluded",
+        "The request path is only a dictionary key, looked up exactly as received: it is never decoded, normalised or joined onto the filesystem, and anything not listed gets a plain-text 404 that does not echo the request",
+        "Unit tests cover traversal spellings, absolute, encoded and null-byte paths, and pin the allowlist to the packaged files"
+      ]
+    },
+    {
+      "id": "T-009",
+      "statement": "A file served with a missing or wrong content type [TB-INGRESS] could be sniffed or executed as something else in a viewer's browser [TB-EDGE], which leads to script running from a non-script file, or a page whose modules fail to load.",
+      "stride": [
+        "T"
+      ],
+      "mitigations": [
+        "Content types come from an explicit map (text/javascript, text/css, font/woff2, audio/mpeg, text/plain); files of any other type are never served",
+        "X-Content-Type-Options: nosniff on every file and error response",
+        "Unit tests check the content type and the byte-exact base64 round trip of every served file"
+      ]
+    },
+    {
+      "id": "T-010",
+      "statement": "A response cached at the edge [TB-EDGE] for one request could be replayed for another, or a canary deployment [TB-PIPELINE] could pair a new page with old files, which leads to broken or inconsistent pages for viewers.",
+      "stride": [
+        "T",
+        "D"
+      ],
+      "mitigations": [
+        "Responses depend only on the cache key (path and query string) and on Range, which CloudFront handles itself; GET and HEAD return identical responses",
+        "Error responses carry Cache-Control: no-store, and CloudFront does not cache 416 responses",
+        "The edition ships in two releases: its files first, while '/' still serves the 16-bit scene, then the switch of '/', so both versions in a canary serve the same files",
+        "Short lifetimes: 60 s for code and text, 5 s for the document, and the edge MaxTTL of 60 s for everything"
+      ]
+    },
+    {
+      "id": "T-011",
+      "statement": "An anonymous viewer sending malformed, oversized, repeated or cache-busting requests for the large score (Range headers, new query strings, or the execute-api URL, which bypasses the edge cache) [TB-EDGE] could make the function raise or rebuild the whole file response again and again [TB-INGRESS], which leads to slow responses, Lambda concurrency taken from other functions in the account, or Lambda errors that roll back a canary.",
+      "stride": [
+        "D"
+      ],
+      "mitigations": [
+        "Range parsing never raises: malformed, multi-range and If-Range requests get the whole file, oversized numbers saturate before int(), and unsatisfiable starts get 416",
+        "Files are held in memory from start-up and a range only slices those bytes; the largest response (the score, about 2 MB as base64) is a third of Lambda's 6 MB response limit",
+        "A file URL with a query string gets the same cheap 404 as an unknown path. The page never adds one, and each new query string is a separate CloudFront cache key that would otherwise fetch the whole file from the function; unit tests cover every file, both methods and both query fields",
+        "Through CloudFront, Cache-Control above zero lets the edge answer repeat requests for each file for up to 60 s (the cache policy's MaxTTL)",
+        "Residual risk, accepted for this demo: requests to the public execute-api URL bypass CloudFront, so each one reaches the function, and a full score response is about 2 MB and far more work than the page. Only the account-level API Gateway throttle and Lambda concurrency limit bound them. The load shows in the default CloudWatch Lambda and API Gateway metrics, but no alarm watches it (HelloErrorsAlarm counts errors only). Reserved concurrency for HelloFn or $default stage throttling needs a template and threat-model change in a later release",
+        "A seeded randomized test sends thousands of hostile requests and requires a well-formed response to each"
+      ]
+    },
+    {
+      "id": "T-012",
+      "statement": "An on-path attacker between a viewer and the edge [TB-EDGE] could strip the HTTP-to-HTTPS redirect or force an old TLS version, which leads to a tampered page or a readable connection",
+      "stride": [
+        "T",
+        "I"
+      ],
+      "mitigations": [
+        "Every response carries Strict-Transport-Security (max-age one year, includeSubDomains), so a browser that has visited once uses HTTPS only",
+        "The viewer protocol policy redirects HTTP to HTTPS, and the origin is HTTPS-only with TLS 1.2",
+        "With DomainName and CertificateArn set, viewers need TLS 1.2 or later (TLSv1.2_2021)",
+        "Residual risk, accepted for this demo: on the default *.cloudfront.net certificate CloudFront always applies its TLSv1 policy, so TLS 1.0 and 1.1 stay possible there (HSTS keeps browsers on HTTPS but does not stop a TLS version downgrade); use a custom domain for anything beyond a demo"
+      ]
+    }
+  ],
+  "lastReviewed": "2026-11-07 \u2014 Reviewed the template.yaml change that makes the default viewer certificate explicit (CloudFrontDefaultCertificate when no custom domain is set) and documents that CloudFront then allows TLS 1.0/1.1; handler responses now carry HSTS. New threat T-012 [TB-EDGE]; no new resource, IAM statement or public input. 2026-10-31 \u2014 Reviewed two template.yaml changes. First, adding the AWS::LanguageExtensions transform to template.yaml. It resolves !Ref Revision before SAM hashes the function, so every pipeline revision publishes a Lambda version and goes through the canary, pre-traffic hook and alarm (T-004, T-006). No new resource, IAM statement, public input or trust boundary. The pipeline now deploys the stack with a scoped CloudFormation role instead of administrator access (T-003). Second, two internal labels were removed from template comments; no resource, IAM statement, input or boundary changed."
+}

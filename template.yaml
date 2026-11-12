@@ -1,0 +1,226 @@
+AWSTemplateFormatVersion: '2010-09-09'
+# LanguageExtensions resolves !Ref Revision before SAM hashes the function, so
+# every pipeline revision publishes a new version and goes through the canary.
+# Without it, a parameter-only change updates $LATEST and skips CodeDeploy.
+Transform:
+  - AWS::LanguageExtensions
+  - AWS::Serverless-2016-10-31
+Description: >
+  Demo service guarded by the agentic gates. Deployed by the pipeline's
+  safe-deploy tail: CodeDeploy canary traffic shifting + CloudWatch alarm gate +
+  PreTraffic validation hook -> automatic rollback. Open question 1 resolved: Lambda
+  (cheaper, faster demo) over Fargate.
+
+Parameters:
+  Revision:
+    Type: String
+    Default: local
+    AllowedPattern: 'local|[0-9a-f]{40}'
+    Description: Source revision supplied by the pipeline for release traceability
+  DomainName:
+    Type: String
+    Default: ''
+    Description: Custom domain for the site ('' for the cloudfront.net default)
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: us-east-1 ACM cert covering DomainName ('' to skip)
+  HostedZoneId:
+    Type: String
+    Default: ''
+    Description: Route53 public zone for DomainName ('' to skip record creation)
+
+Conditions:
+  HasDomain: !And
+    - !Not [!Equals [!Ref DomainName, '']]
+    - !Not [!Equals [!Ref CertificateArn, '']]
+  HasZone: !And
+    - !Condition HasDomain
+    - !Not [!Equals [!Ref HostedZoneId, '']]
+
+Resources:
+  HelloFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: agentic-gates-demo-hello
+      Handler: handler.lambda_handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 10
+      CodeUri: src/
+      AutoPublishAlias: live
+      Environment:
+        Variables:
+          DEMO_REVISION: !Ref Revision
+      Events:
+        Site:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        Root:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: GET
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref HelloErrorsAlarm
+        Hooks:
+          PreTraffic: !Ref PreTrafficHook
+
+  # Validates the NEW version before any traffic shifts. demo/regression trips this:
+  # the erroring version fails the smoke invoke -> CodeDeploy rolls back automatically.
+  PreTrafficHook:
+    Type: AWS::Serverless::Function
+    Properties:
+      # CodeDeployHook_ prefix is required by SAM's generated CodeDeploy role.
+      FunctionName: CodeDeployHook_agentic-gates-pretraffic
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 60
+      DeploymentPreference:
+        Enabled: false
+      Environment:
+        Variables:
+          NEW_VERSION: !Ref HelloFn.Version
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: codedeploy:PutLifecycleEventHookExecutionStatus
+              Resource: !Sub arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${ServerlessDeploymentApplication}/*
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Ref HelloFn.Version
+      InlineCode: |
+        import boto3, json, os
+        cd = boto3.client("codedeploy")
+        lam = boto3.client("lambda")
+
+        def handler(event, context):
+            dep = event["DeploymentId"]
+            hook = event["LifecycleEventHookExecutionId"]
+            status = "Succeeded"
+            try:
+                r = lam.invoke(FunctionName=os.environ["NEW_VERSION"],
+                               Payload=json.dumps({"smoke": True}).encode())
+                body = r["Payload"].read()
+                if r.get("FunctionError"):
+                    print("new version errored:", body[:300])
+                    status = "Failed"
+                else:
+                    print("smoke ok:", body[:120])
+            except Exception as exc:
+                print("invoke failed:", exc)
+                status = "Failed"
+            cd.put_lifecycle_event_hook_execution_status(
+                deploymentId=dep, lifecycleEventHookExecutionId=hook, status=status)
+            return {"status": status}
+
+  # Alarm gate during traffic shifting: errors on the live alias.
+  HelloErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Errors on the live alias during deployment -> rollback
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: FunctionName
+          Value: agentic-gates-demo-hello
+        - Name: Resource
+          Value: agentic-gates-demo-hello:live
+
+  # Public entry: CloudFront -> API Gateway -> Lambda live alias. Keeps the
+  # Lambda private, adds TLS termination, edge caching, and a stable hostname.
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: THE FALL OF TROY - agentic gates demo artifact
+        Aliases: !If [HasDomain, [!Ref DomainName], !Ref 'AWS::NoValue']
+        # With a custom domain, viewers need TLS 1.2 or later. Without one, the
+        # site uses the *.cloudfront.net certificate, and CloudFront then always
+        # applies its TLSv1 policy (MinimumProtocolVersion is ignored), so TLS
+        # 1.0/1.1 stay possible. Pass DomainName and CertificateArn to avoid that.
+        ViewerCertificate: !If
+          - HasDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: api
+            DomainName: !Sub '${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: api
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref DemoCachePolicy
+          Compress: true
+
+  # Short, query-aware caching makes the visible release marker and future
+  # dedication feature observable. This is a low-traffic demonstration policy.
+  DemoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-demo
+        DefaultTTL: 0
+        MinTTL: 0
+        MaxTTL: 60
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+
+  SiteAliasA:
+    Type: AWS::Route53::RecordSet
+    Condition: HasZone
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt SiteDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2  # CloudFront's fixed zone id
+  SiteAliasAAAA:
+    Type: AWS::Route53::RecordSet
+    Condition: HasZone
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt SiteDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+
+Outputs:
+  SiteUrl:
+    Description: The deployed artifact (80s-arcade Fall of Troy)
+    Value: !If [HasDomain, !Sub 'https://${DomainName}/',
+                !Sub 'https://${SiteDistribution.DomainName}/']
+  ApiUrl:
+    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/'
+
+  LiveAlias:
+    Value: !Ref HelloFn.Alias
+  Version:
+    Value: !Ref HelloFn.Version

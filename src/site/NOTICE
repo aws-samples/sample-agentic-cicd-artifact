@@ -1,0 +1,26 @@
+THE FALL OF TROY, illustrated edition: third-party notices
+
+The files in this directory are a snapshot of the illustrated edition's
+published build (commit 3839c46 of its source repository: public/ without the
+development pages). The material listed below keeps its own licence;
+everything else here is covered by this repository's LICENSE.
+
+Score
+
+  assets/score.mp3 ("Strings and Breath") is an original score composed in
+  code for this film. Its source, the pinned sample manifest and the full
+  licence record are in music/ of the illustrated edition's source
+  repository. Orchestral and piano samples: VSCO 2 Community Edition by
+  Versilian Studios (Sam Gossner) and Ivy Audio (Simon Dalzell), CC0 1.0
+  Universal, https://vis.versilstudios.net/vsco-community.html
+  No other recorded audio is used.
+
+Fonts
+
+  assets/fonts/cormorant.woff2 is Cormorant Garamond Regular, Copyright 2015
+  The Cormorant Project Authors (github.com/CatharsisFonts/Cormorant).
+  Licensed under the SIL Open Font License 1.1: assets/fonts/cormorant-OFL.txt
+
+  assets/fonts/dm-sans.woff2 is DM Sans Regular, Copyright 2014 The DM Sans
+  Project Authors (https://github.com/googlefonts/dm-fonts).
+  Licensed under the SIL Open Font License 1.1: assets/fonts/dm-sans-OFL.txt
