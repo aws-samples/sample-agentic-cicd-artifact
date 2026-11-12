@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>THE FALL OF TROY</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c3a92">
+<meta name="description" content="The fall of Troy, retold as a minute of moving prints.">
+<link rel="preload" href="./assets/fonts/cormorant.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./js/main.js"></script>
+</head><body>
+<main id="wrap">
+  <canvas id="c" role="img"
+    aria-label="A moving print of the fall of Troy: the Greek fleet sails away and leaves a wooden horse on the beach; the Trojans open their gate and haul it inside; at night Odysseus climbs down from its belly and opens the gate from within; the Greek army pours in, Athena's statue falls and the city burns while Zeus looks down from the storm; Aeneas carries his father out of the burning city.">
+    The Trojan Horse is brought inside the walls of Troy; the city burns while Zeus watches from the storm clouds.
+  </canvas>
+  <div id="shade" class="shade" aria-hidden="true"></div>
+  <div id="shade-top" class="shade" aria-hidden="true"></div>
+  <div id="grain-hi" class="grain" aria-hidden="true"></div>
+  <div id="grain-lo" class="grain" aria-hidden="true"></div>
+
+  <header id="top">
+    <span class="mark">THE FALL OF TROY</span>
+  </header>
+
+  <section id="intro" aria-labelledby="hud">
+    <p class="eyebrow">ODYSSEY CORP PRESENTS</p>
+    <h1 id="hud">THE FALL OF TROY</h1>
+    <p class="tagline">BEWARE GEEKS BEARING GIFTS</p>
+    <button id="start" type="button" aria-label="Press start to watch the fall of Troy" disabled>
+      <span class="tri" aria-hidden="true">▶</span> PRESS START
+      <small>one minute · sound on</small>
+    </button>
+    <p id="dedication">TO ATHENA &middot; FOR RE:INVENT 2026 &middot; THE GREEKS DEDICATE THIS OFFERING</p>
+    <p id="loading" role="status">PREPARING THE PLATES…</p>
+  </section>
+
+  <section id="caption-box" aria-hidden="true">
+    <p id="chapter"></p>
+    <p id="caption"></p>
+    <p id="subcap"></p>
+  </section>
+  <p id="narration" class="sr-only" role="status" aria-live="polite"></p>
+
+  <section id="end" hidden aria-labelledby="end-title">
+    <h2 id="end-title">THE FALL OF TROY</h2>
+    <p class="tagline">AND FROM ITS ASHES, A&nbsp;WANDERER</p>
+    <button id="again" type="button">↺ WATCH AGAIN</button>
+    <p class="copy">© 1186 BC ODYSSEY CORP</p>
+  </section>
+
+  <div id="controls" hidden>
+    <nav id="chapters" aria-label="Chapters"></nav>
+    <div class="bar">
+      <button id="play" type="button" aria-label="Pause">❚❚</button>
+      <button id="restart" type="button" aria-label="Restart">↺</button>
+      <label class="sr-only" for="seek">Position</label>
+      <input id="seek" type="range" min="0" max="61.49" step="0.01" value="0">
+      <span id="clock">0:00 / 1:01</span>
+      <button id="sound" type="button" aria-pressed="false" aria-label="Mute">SOUND ON</button>
+      <button id="fs" type="button" aria-label="Fullscreen">⛶</button>
+    </div>
+  </div>
+
+  <footer id="foot">
+    <div id="hud2">Troy delivery demo · AI review, automated checks, and staged releases · <!--RELEASE_VERSION--></div>
+    <div id="visitor-dedication" aria-live="polite"><!--VISITOR_DEDICATION--></div>
+    <div class="copy">© 1186 BC ODYSSEY CORP</div>
+  </footer>
+
+  <div id="error" hidden role="alert">This edition needs WebGL 2. Please open it in a current Chrome, Edge, Firefox or Safari.</div>
+  <audio id="music" src="./assets/score.mp3" preload="auto"></audio>
+</main>
+</body></html>

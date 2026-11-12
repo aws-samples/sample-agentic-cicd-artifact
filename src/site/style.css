@@ -1,0 +1,218 @@
+@font-face { font-family: 'Cormorant'; src: url(assets/fonts/cormorant.woff2) format('woff2'); font-display: block; }
+@font-face { font-family: 'DM Sans'; src: url(assets/fonts/dm-sans.woff2) format('woff2'); font-display: swap; }
+
+:root {
+  --ivory: #f3ede1;
+  --ivory-dim: rgba(243, 237, 225, 0.72);
+  --cobalt: #2244a0;
+  --navy: #081668;
+  --deep: #040a3a;
+  --red: #c62c1f;
+  --ink: #08080b;
+  --serif: 'Cormorant', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--ivory); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+#wrap { position: fixed; inset: 0; overflow: hidden; background: #000; }
+#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* print grain over everything: two tiles built at load from one
+   noise field (engine/grain.js), its bright half screened and its dark half
+   multiplied, tinted so it sits in green and blue more than in red, like the plates. */
+.grain { position: absolute; inset: -64px; pointer-events: none; background-size: 256px 256px; z-index: 2; }
+#grain-hi { mix-blend-mode: screen; opacity: 0.13; }
+#grain-lo { mix-blend-mode: multiply; opacity: 0.13; }
+/* The caption wash (production standard 30: it never veils the plate).
+   It is a light ink tone confined to the LINE OF WORDS: main.js sets --cap0
+   and --cap1 (the near and far edge of the words, as distances from the frame
+   edge it is anchored to) and --capw (their width), so the darkest stop sits
+   on the words and the wash fades to nothing about 7vh past them, while the
+   frame edge, the paving beside the words and the sky above them keep their
+   white. Its opacity is the measured strength, capped at 0.7 (main.js
+   WASH_MAX). Legibility comes first from the letters' own ink halo (their
+   contour text-shadow), never from a soft bed behind them (style rule 3).
+   The wash multiplies (mix-blend-mode): over ivory it darkens as an alpha
+   wash of the same colour would, but red firelight only darkens, so it never
+   mixes to plum (standard 15). It sits under the print grain (z-index 1
+   against 2), so the grain textures it like the rest of the plate. */
+.shade { position: absolute; left: 0; right: 0; height: calc(var(--cap1, 16vh) + 7vh); max-height: 30vh; pointer-events: none; z-index: 1; opacity: 0; transition: opacity 0.5s ease; mix-blend-mode: multiply; }
+#shade { bottom: 0;
+  background: linear-gradient(to top, rgba(3, 7, 34, 0.06), rgba(3, 7, 34, 0.15) calc(var(--cap0, 6vh) - 14px), rgba(3, 7, 34, 0.42) calc(var(--cap0, 6vh) + 2px),
+    rgba(3, 7, 34, 0.42) calc(var(--cap1, 12vh) + 2px), rgba(3, 7, 34, 0.11) calc(var(--cap1, 12vh) + 2.5vh), rgba(3, 7, 34, 0) calc(var(--cap1, 12vh) + 6vh)); }
+/* The top wash runs darker than the bottom one: a top caption sits on sky,
+   the darkest field of a day frame, so the same tone costs a third as much
+   mean-L there (measured 9-11 against the bottom captions' 22-29), while
+   s03's sunlit tower piers need every bit of it. */
+#shade-top { top: 0;
+  background: linear-gradient(to bottom, rgba(3, 7, 34, 0.08), rgba(3, 7, 34, 0.2) calc(var(--cap0, 6vh) - 14px), rgba(3, 7, 34, 0.58) calc(var(--cap0, 6vh) + 2px),
+    rgba(3, 7, 34, 0.58) calc(var(--cap1, 12vh) + 2px), rgba(3, 7, 34, 0.15) calc(var(--cap1, 12vh) + 2.5vh), rgba(3, 7, 34, 0) calc(var(--cap1, 12vh) + 6vh)); }
+/* and horizontally to the words (their width plus about 9vw) */
+#shade { -webkit-mask-image: radial-gradient(ellipse calc(var(--capw, 46vw) * 0.5 + 9vw) 130% at 50% 100%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse calc(var(--capw, 46vw) * 0.5 + 9vw) 130% at 50% 100%, #000 62%, transparent 100%); }
+#shade-top { -webkit-mask-image: radial-gradient(ellipse calc(var(--capw, 46vw) * 0.5 + 9vw) 130% at 50% 0%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse calc(var(--capw, 46vw) * 0.5 + 9vw) 130% at 50% 0%, #000 62%, transparent 100%); }
+
+#top { position: absolute; top: 0; left: 0; right: 0; z-index: 3; display: flex; justify-content: space-between; align-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 0 max(22px, env(safe-area-inset-left));
+  font: 500 10.5px/1 var(--sans); letter-spacing: 0.34em; color: var(--ivory-dim); pointer-events: none; transition: opacity 0.6s; }
+#top .mark::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 12px; background: var(--red); transform: rotate(45deg) translateY(-1px); }
+body.playing.idle #top { opacity: 0; }
+
+/* ---------- title ---------- */
+#intro { position: absolute; z-index: 3; left: 0; right: 0; top: 13vh; padding: 0 24px; text-align: center; transition: opacity 0.9s ease, transform 0.9s ease; }
+#intro .eyebrow { margin: 0 0 18px; font: 500 11px/1 var(--sans); letter-spacing: 0.5em; color: var(--ivory-dim); }
+#intro h1 { margin: 0; font: 400 clamp(46px, 8.6vw, 148px)/0.95 var(--serif); letter-spacing: 0.13em; padding-left: 0.13em;
+  text-shadow: 0 2px 0 rgba(6, 14, 60, 0.35), 0 0 40px rgba(6, 14, 60, 0.25); }
+.tagline { margin: 16px 0 0; font: 400 clamp(14px, 1.55vw, 21px)/1.3 var(--serif); letter-spacing: 0.46em; padding-left: 0.46em; color: #dfe5f6; }
+#start { margin: 34px auto 0; display: inline-flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer;
+  padding: 15px 34px 13px; border: 1px solid rgba(243, 237, 225, 0.85); background: rgba(8, 22, 104, 0.28);
+  font: 500 12.5px/1 var(--sans); letter-spacing: 0.36em; color: var(--ivory); transition: background 0.25s, color 0.25s, border-color 0.25s, opacity 0.4s;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+#start .tri { font-size: 10px; margin-right: 6px; color: var(--red); transition: color 0.25s; }
+#start small { font: 400 10px/1 var(--sans); letter-spacing: 0.24em; color: var(--ivory-dim); text-transform: none; transition: color 0.25s; }
+#start:hover:not(:disabled), #start:focus-visible { background: var(--ivory); color: var(--navy); border-color: var(--ivory); }
+#start:hover:not(:disabled) small, #start:focus-visible small { color: rgba(8, 22, 104, 0.75); }
+#start:focus-visible, #again:focus-visible, #controls button:focus-visible, #seek:focus-visible { outline: 2px solid var(--red); outline-offset: 4px; }
+#start:disabled { opacity: 0.45; cursor: progress; }
+#dedication { margin: 30px auto 0; max-width: 46em; font: 500 10px/1.8 var(--sans); letter-spacing: 0.34em; color: var(--ivory-dim); }
+#loading { margin: 14px 0 0; font: 500 10px/1 var(--sans); letter-spacing: 0.4em; color: var(--ivory-dim); }
+body.ready #loading { visibility: hidden; }
+body.playing #intro, body.ended #intro { opacity: 0; transform: translateY(-14px); pointer-events: none; }
+
+/* ---------- captions ---------- */
+/* The caption is part of the picture, not of the chrome: it sits under the
+   print grain (z-index 1 against the grain's 2), so the words carry the same
+   grain as the plate. There is no bed behind them: the wash above and the
+   letters' own ink contour carry the legibility (standard 30). */
+#caption-box { position: absolute; z-index: 1; left: 0; right: 0; bottom: calc(44px + env(safe-area-inset-bottom)); padding: 0 20px; text-align: center; pointer-events: none; transition: bottom 0.5s ease, top 0.5s ease; }
+body.playing:not(.idle) #caption-box, body.paused #caption-box { bottom: calc(108px + env(safe-area-inset-bottom)); }
+body.cap-top #caption-box, body.cap-top.playing:not(.idle) #caption-box, body.cap-top.paused #caption-box { bottom: auto; top: calc(9vh + env(safe-area-inset-top)); }
+/* The letters' own ink halo carries their legibility (standard 30): a hard
+   near-black contour all round, like an inked letterform in the plates, then
+   a tight ink bleed a few px wide. No wide soft glow: that printed as an
+   airbrushed smudge over the stone. */
+/* The chapter kicker carries the caption's ink weight and its ivory, not a
+   pale salmon with a thin contour: at 10.5px/500 in #f4c7be with a 0.8px
+   contour it measured 1.2-1.6:1 against the plate under it in s04, s05, s07,
+   s09 and s11 and simply vanished on lit stone, while the caption survived on
+   the same plates on its 1.3px contour (standards 3 and 30). The numeral keeps
+   the red accent (main.js splits the line into <b> and <span>). */
+#chapter { margin: 0 0 10px; font: 500 10.5px/1 var(--sans); letter-spacing: 0.5em; padding-left: 0.5em; color: var(--ivory);
+  text-shadow: 1.1px 0 0 #030722, -1.1px 0 0 #030722, 0 1.1px 0 #030722, 0 -1.1px 0 #030722, 0.8px 0.8px 0 #030722, -0.8px -0.8px 0 #030722, 0.8px -0.8px 0 #030722, -0.8px 0.8px 0 #030722,
+    0 0 2px #030722, 0 0 3px rgba(3, 7, 34, 0.9), 0 0 8px rgba(3, 7, 34, 0.55); opacity: 0; transition: opacity 0.22s ease; }
+#chapter b { font-weight: 500; color: #f4c7be; }
+#caption { margin: 0; text-wrap: balance; font: 400 clamp(19px, 2.7vw, 40px)/1.15 var(--serif); letter-spacing: 0.21em; padding-left: 0.21em;
+  text-shadow: 1.3px 0 0 #030722, -1.3px 0 0 #030722, 0 1.3px 0 #030722, 0 -1.3px 0 #030722, 0.95px 0.95px 0 #030722, -0.95px -0.95px 0 #030722, 0.95px -0.95px 0 #030722, -0.95px 0.95px 0 #030722,
+    0 0 2px #030722, 0 0 4px rgba(3, 7, 34, 0.95), 0 0 8px rgba(3, 7, 34, 0.8), 0 0 16px rgba(3, 7, 34, 0.45);
+  opacity: 0; transform: translateY(6px); transition: opacity 0.22s ease, transform 0.22s ease; }
+#subcap { margin: 12px auto 0; max-width: 72em; text-wrap: balance; font: 500 clamp(10px, 0.9vw, 12.5px)/1.65 var(--sans); letter-spacing: 0.32em; padding-left: 0.32em; color: rgba(243, 237, 225, 0.9);
+  text-shadow: 0.8px 0 0 #030722, -0.8px 0 0 #030722, 0 0.8px 0 #030722, 0 -0.8px 0 #030722, 0.6px 0.6px 0 #030722, -0.6px -0.6px 0 #030722, 0.6px -0.6px 0 #030722, -0.6px 0.6px 0 #030722,
+    0 0 3px rgba(3, 7, 34, 0.9), 0 0 8px rgba(3, 7, 34, 0.55); opacity: 0; transition: opacity 0.22s ease; }
+/* On a plate bright enough to need the full wash (main.js adds .on-light at
+   k >= 0.66), the letters' ink keyline is heavier. On ivory stone the eye
+   reads an inked letterform from its contour, not from its fill - the wash is
+   capped at 0.7 (standard 30), so the fill can never out-measure sunlit or
+   moonlit stone, and a dark-ink caption would vanish where the same line
+   crosses a navy field (s07 with the transport up: 58% of the plate under the
+   words is above Y 0.25 and 31% is below 0.08). */
+#caption-box.on-light #caption {
+  text-shadow: 1.7px 0 0 #030722, -1.7px 0 0 #030722, 0 1.7px 0 #030722, 0 -1.7px 0 #030722, 1.25px 1.25px 0 #030722, -1.25px -1.25px 0 #030722, 1.25px -1.25px 0 #030722, -1.25px 1.25px 0 #030722,
+    0 0 2px #030722, 0 0 4px rgba(3, 7, 34, 0.95), 0 0 8px rgba(3, 7, 34, 0.8), 0 0 16px rgba(3, 7, 34, 0.45); }
+#caption-box.on-light #chapter, #caption-box.on-light #subcap {
+  text-shadow: 1.3px 0 0 #030722, -1.3px 0 0 #030722, 0 1.3px 0 #030722, 0 -1.3px 0 #030722, 0.95px 0.95px 0 #030722, -0.95px -0.95px 0 #030722, 0.95px -0.95px 0 #030722, -0.95px 0.95px 0 #030722,
+    0 0 2px #030722, 0 0 3px rgba(3, 7, 34, 0.9), 0 0 8px rgba(3, 7, 34, 0.55); }
+/* fade in slowly, out quickly (a cut or a moved caption crossfades, never slides) */
+#caption-box.show #caption { opacity: 1; transform: none; transition: opacity 0.7s ease, transform 0.7s ease; }
+#caption-box.show #chapter, #caption-box.show #subcap { opacity: 1; transition: opacity 0.7s ease; }
+/* only the subcaption changes (same caption, same place): it alone crossfades */
+#caption-box.show #subcap.swap { opacity: 0; transition: opacity 0.22s ease; }
+#caption-box #chapter:empty, #caption-box #chapter.off, #caption-box #subcap:empty { display: none; }
+
+/* ---------- end card ---------- */
+/* The card's tint is NEUTRAL dark grey, not navy (standard 15): #end makes a
+   stacking context, so a multiply here would be isolated from the canvas,
+   and a navy alpha wash over the last frame's burning Troy mixed to plum.
+   Grey only darkens and desaturates: red goes red-black. */
+#end { position: absolute; z-index: 4; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px;
+  background: radial-gradient(ellipse at center, rgba(15, 15, 19, 0.3), rgba(7, 7, 11, 0.62)); animation: fadein 1.4s ease both; }
+#end[hidden] { display: none; }
+/* The card a quarter of a second before the end: laid out and painted, but
+   invisible and inert, so its first real frame is only a class change (it
+   cost 28-30 ms in WebKit in the frame that also drew the last picture). */
+#end.warm { opacity: 0; animation: none; pointer-events: none; }
+#end h2 { margin: 0; font: 400 clamp(40px, 7.4vw, 124px)/0.95 var(--serif); letter-spacing: 0.13em; padding-left: 0.13em;
+  text-shadow: 0 0 2px rgba(8, 8, 12, 0.9), 0 0 18px rgba(8, 8, 12, 0.7), 0 0 44px rgba(8, 8, 12, 0.45); }
+#end h2, #end .tagline { text-wrap: balance; }
+#again { margin-top: 34px; cursor: pointer; padding: 13px 28px 12px; border: 1px solid rgba(243, 237, 225, 0.8); background: rgba(8, 22, 104, 0.3);
+  font: 500 11.5px/1 var(--sans); letter-spacing: 0.34em; transition: background 0.25s, color 0.25s; }
+#again:hover { background: var(--ivory); color: var(--navy); }
+#end .copy { margin-top: 26px; font: 500 10px/1 var(--sans); letter-spacing: 0.4em; color: var(--ivory-dim); }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- transport ---------- */
+#controls { position: absolute; z-index: 5; left: 0; right: 0; bottom: 0; padding: 0 max(18px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  transition: opacity 0.5s ease, transform 0.5s ease; }
+#controls[hidden] { display: none; }
+body.playing.idle #controls { opacity: 0; transform: translateY(8px); pointer-events: none; }
+#chapters { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+/* the chapter row has no backdrop of its own, so its words carry the captions'
+   ink contour: they sit on the plate (s05's and s11's ivory paving and sand) */
+#chapters button { cursor: pointer; border: 0; background: none; padding: 6px 10px; font: 500 9.5px/1 var(--sans); letter-spacing: 0.3em; color: var(--ivory-dim); transition: color 0.2s;
+  text-shadow: 0.8px 0 0 #030722, -0.8px 0 0 #030722, 0 0.8px 0 #030722, 0 -0.8px 0 #030722, 0 0 3px rgba(3, 7, 34, 0.9), 0 0 7px rgba(3, 7, 34, 0.5); }
+#chapters button b { font-weight: 500; color: #f2c1b8; margin-right: 8px; }
+#chapters button:hover, #chapters button[aria-current='true'] { color: var(--ivory); }
+#chapters button[aria-current='true'] b { color: var(--red); }
+.bar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(3, 8, 40, 0.55); border: 1px solid rgba(243, 237, 225, 0.14);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.bar button { cursor: pointer; border: 0; background: none; padding: 4px 6px; font: 500 10.5px/1 var(--sans); letter-spacing: 0.24em; color: var(--ivory); min-width: 28px; }
+#play { font-size: 11px; letter-spacing: 0; }
+#clock { font: 500 10.5px/1 var(--sans); letter-spacing: 0.12em; color: var(--ivory-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#seek { flex: 1; min-width: 60px; appearance: none; -webkit-appearance: none; height: 18px; background: transparent; cursor: pointer; }
+#seek::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(to right, var(--red) var(--p, 0%), rgba(243, 237, 225, 0.3) var(--p, 0%)); }
+#seek::-moz-range-track { height: 2px; background: rgba(243, 237, 225, 0.3); }
+#seek::-moz-range-progress { height: 2px; background: var(--red); }
+#seek::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; margin-top: -4.5px; background: var(--ivory); border: 0; transform: rotate(45deg); }
+#seek::-moz-range-thumb { width: 10px; height: 10px; background: var(--ivory); border: 0; border-radius: 0; transform: rotate(45deg); }
+
+/* ---------- footer meta ---------- */
+/* The credits sit on the title card's open sky or the s01 cumulus: the box
+   hugs the words, and a soft ink wash sized to them (like the captions'
+   halo) keeps them legible on the white billows. */
+#foot { position: absolute; z-index: 2; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 16px);
+  bottom: max(8px, env(safe-area-inset-bottom)); text-align: center; pointer-events: none;
+  font: 500 9px/1.7 var(--sans); letter-spacing: 0.2em; color: rgba(243, 237, 225, 0.74); transition: opacity 0.6s;
+  text-shadow: 0 0 1px rgba(3, 7, 34, 0.95), 0 0 6px rgba(3, 7, 34, 0.8); }
+#foot::before { content: ''; position: absolute; z-index: -1; inset: -20px -30% -14px; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(3, 7, 34, 0.64), rgba(3, 7, 34, 0.54) 50%, rgba(3, 7, 34, 0.32) 72%, rgba(3, 7, 34, 0)); }
+#foot .copy { letter-spacing: 0.36em; }
+body.playing #foot, body.ended #foot { opacity: 0; }
+#visitor-dedication:empty { display: none; }
+#visitor-dedication { color: var(--ivory); letter-spacing: 0.26em; }
+
+#error { position: absolute; z-index: 9; inset: 0; display: grid; place-items: center; padding: 30px; text-align: center; background: var(--navy);
+  font: 400 22px/1.4 var(--serif); letter-spacing: 0.06em; }
+#error[hidden] { display: none; }
+
+@media (max-width: 640px) {
+  #top { font-size: 9px; letter-spacing: 0.26em; }
+  #intro { top: 11vh; }
+  #intro .eyebrow { font-size: 9.5px; letter-spacing: 0.4em; }
+  .tagline { letter-spacing: 0.3em; padding-left: 0.3em; }
+  #dedication { font-size: 9px; letter-spacing: 0.24em; max-width: 26em; }
+  #caption-box { bottom: calc(40px + env(safe-area-inset-bottom)); }
+  body.playing:not(.idle) #caption-box, body.paused #caption-box { bottom: calc(124px + env(safe-area-inset-bottom)); }
+  #caption { letter-spacing: 0.14em; padding-left: 0.14em; }
+  #chapters button { padding: 5px 6px; font-size: 8.5px; letter-spacing: 0.2em; }
+  #chapters button span { display: none; }
+  .bar { gap: 8px; padding: 6px 8px; }
+  #clock { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #intro, #caption, #controls, #end { transition: none !important; animation: none !important; }
+  #caption-box { transition: none !important; }
+}
