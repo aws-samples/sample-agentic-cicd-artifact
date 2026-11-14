@@ -352,7 +352,7 @@ function pushKeys({ x0, x1, w0, w1, aspect, frameW, frameH, e0, e1, hold = 0, n 
 export default {
   id: 's02', dur: 4.46, night: false,
   caption: 'BEWARE GEEKS BEARING GIFTS',
-  subcaption: 'TO ATHENA · FOR RE:INVENT 2026 · THE GREEKS DEDICATE THIS OFFERING',
+  subcaption: 'TO ATHENA · SEE YOU AT DVT345 · THE GREEKS DEDICATE THIS OFFERING',
   // the caption sits on the open sky above the ears; the board and the
   // onlookers at the base stay clear (STYLE production standard 3)
   captionPos: 'top', captionPosPortrait: 'top',
