@@ -272,7 +272,7 @@ jobs:
             --show-summary fail
       - name: Report advisory coverage limits
         run: |
-          echo 'An Access Analyzer error blocks. A policy with CloudFormation intrinsics skips Access Analyzer (advisory; the wildcard checks still apply). Inspector SBOM is not run in this PR workflow.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'An Access Analyzer error blocks. A policy with CloudFormation intrinsics is validated with placeholders for deploy-time values; an intrinsic that cannot be resolved blocks. Inspector SBOM is not run in this PR workflow.' >> "$GITHUB_STEP_SUMMARY"
 
   threat-model:
     needs: guard
