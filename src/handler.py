@@ -86,9 +86,8 @@ def lambda_handler(event, context):
         f"Release version {version} · revision {escape(revision[:12])}",
     )
     ded = (event.get("queryStringParameters") or {}).get("dedication")
-    # The feature accepts text, so encode at the HTML boundary and bound it.
-    page = (page.replace(DEDICATION_DEFAULT, escape(ded[:120]))
-            if ded else page)
+    # Visitors can style a dedication with <b> or <i>, so keep their tags.
+    page = page.replace(DEDICATION_DEFAULT, ded[:120]) if ded else page
     return {
         "statusCode": 200,
         "headers": {

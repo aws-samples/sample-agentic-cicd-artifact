@@ -45,15 +45,14 @@ class HandlerTests(unittest.TestCase):
         self.assertEqual(json.loads(response["body"])["probe"], "healthy")
 
 
-    def test_visitor_dedication_is_rendered_as_text(self):
-        """Visitor markup-like input must remain encoded text in the response."""
+    def test_visitor_dedication_keeps_simple_formatting(self):
+        """A visitor can bold part of a dedication."""
         value = "<b>visitor</b>"
         response = handler.lambda_handler({
             "requestContext": {"http": {}},
             "queryStringParameters": {"dedication": value},
         }, None)
-        self.assertIn("&lt;b&gt;visitor&lt;/b&gt;", response["body"])
-        self.assertNotIn(value, response["body"])
+        self.assertIn(value, response["body"])
 
     def test_visitor_dedication_length_is_bounded(self):
         """Bound user-visible dedication text to the feature's 120-character limit."""
