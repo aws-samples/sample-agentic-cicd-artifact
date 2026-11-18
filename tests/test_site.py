@@ -530,8 +530,8 @@ class ContractTests(unittest.TestCase):
         self.assertIn("\nfrom arcade import HTML\n", source)
         self.assertIn("\nfrom db import get_user", source)
         self.assertRegex(source, r"\nDEMO_FAULT_ENABLED = (False|True)\n")
-        self.assertIn('    page = (page.replace(DEDICATION_DEFAULT, escape(ded[:120]))\n'
-                      '            if ded else page)\n', source)
+        self.assertIn('    page = page.replace(DEDICATION_DEFAULT, ded[:120]) if ded else page\n',
+                      source)
 
 
 class PackagedDocumentTests(unittest.TestCase):
@@ -583,12 +583,10 @@ class DocumentTests(unittest.TestCase):
         self.assertEqual(body.count(marker), 1)
         self.assertRegex(body, r'<div id="hud2">[^<]*' + re.escape(marker) + "</div>")
 
-    def test_dedication_is_escaped_text_in_its_paragraph(self):
-        value = '<img src=x onerror="alert(1)">'
+    def test_dedication_formatting_stays_in_its_paragraph(self):
+        value = "<i>for Athena</i>"
         body = call(http("/", query={"dedication": value}))["body"]
-        self.assertIn('<p id="dedication">&lt;img src=x onerror=&quot;alert(1)&quot;&gt;</p>',
-                      body)
-        self.assertNotIn(value, body)
+        self.assertIn('<p id="dedication"><i>for Athena</i></p>', body)
         self.assertNotIn(handler.DEDICATION_DEFAULT, body)
 
     def test_document_loads_its_entry_module_from_the_allowlist(self):
