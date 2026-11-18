@@ -39,7 +39,7 @@ export const HORSE = {
   tow: { x: OX + 338, y: H - 128 },                              // tow ring at the front of the platform
   eye: { x: OX + EYE[0], y: H + EYE[1] },
   head: { x: OX + 360, y: H - 720 },
-  text: 'TO ATHENA · FOR RE:INVENT 2026',
+  text: 'TO ATHENA · SEE YOU AT DVT345',
 };
 
 // ------------------------------------------------------------- helpers
